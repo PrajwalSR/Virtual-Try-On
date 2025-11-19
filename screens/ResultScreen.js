@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { generateVirtualTryOn, saveImageToDevice } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
  * ResultScreen Component
@@ -35,6 +37,15 @@ const ResultScreen = ({ navigation, route }) => {
   const [resultImage, setResultImage] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [processingTime, setProcessingTime] = useState(0);
+
+  // Animation refs
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  // Timer ref for processing time
+  const startTimeRef = useRef(null);
+  const timerRef = useRef(null);
 
   /**
    * Generate virtual try-on result
@@ -42,9 +53,16 @@ const ResultScreen = ({ navigation, route }) => {
    */
   const generateResult = async () => {
     try {
-      console.log('[ResultScreen] Starting generation...');
       setLoading(true);
       setError(null);
+      setProcessingTime(0);
+
+      // Start processing timer
+      startTimeRef.current = Date.now();
+      timerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        setProcessingTime(elapsed);
+      }, 1000);
 
       // Validate that we have the required data
       if (!userImage || !selectedGarment) {
@@ -54,12 +72,35 @@ const ResultScreen = ({ navigation, route }) => {
       // Call API service to generate virtual try-on
       const result = await generateVirtualTryOn(userImage, selectedGarment);
 
-      console.log('[ResultScreen] Generation complete!');
+      // Stop timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+
       setResultImage(result);
       setLoading(false);
 
+      // Trigger success animation
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
     } catch (err) {
-      console.error('[ResultScreen] Error:', err);
+      // Stop timer on error
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+
       setError(err.message || 'Failed to generate try-on result');
       setLoading(false);
     }
@@ -73,8 +114,10 @@ const ResultScreen = ({ navigation, route }) => {
 
     // Cleanup function
     return () => {
-      // Clean up any pending operations if component unmounts
-      console.log('[ResultScreen] Component unmounting');
+      // Stop timer if component unmounts
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     };
   }, []); // Empty dependency array = run once on mount
 
@@ -82,6 +125,9 @@ const ResultScreen = ({ navigation, route }) => {
    * Retry generation after an error
    */
   const handleRetry = () => {
+    // Reset animations
+    fadeAnim.setValue(0);
+    scaleAnim.setValue(0.9);
     generateResult();
   };
 
@@ -143,12 +189,18 @@ const ResultScreen = ({ navigation, route }) => {
    */
   const renderLoading = () => (
     <View style={styles.centerContent}>
-      <ActivityIndicator size="large" color="#6366f1" />
-      <Text style={styles.loadingTitle}>Generating your look...</Text>
-      <Text style={styles.loadingSubtitle}>
-        Our AI is creating your virtual try-on
-      </Text>
-      <Text style={styles.loadingNote}>This may take a few seconds</Text>
+      <LoadingSpinner
+        message="Generating your virtual try-on..."
+        visible={loading}
+        color="#6366f1"
+      />
+
+      {/* Processing time indicator */}
+      {processingTime > 0 && (
+        <Text style={styles.processingTime}>
+          {processingTime} second{processingTime !== 1 ? 's' : ''}...
+        </Text>
+      )}
 
       {/* Show garment being processed */}
       {selectedGarment && (
@@ -163,31 +215,69 @@ const ResultScreen = ({ navigation, route }) => {
           </Text>
         </View>
       )}
+
+      <Text style={styles.loadingHint}>
+        💡 Tip: Real AI processing typically takes 10-30 seconds
+      </Text>
     </View>
   );
 
   /**
    * Render error state with retry option
    */
-  const renderError = () => (
-    <View style={styles.centerContent}>
-      <Text style={styles.errorIcon}>⚠️</Text>
-      <Text style={styles.errorTitle}>Something went wrong</Text>
-      <Text style={styles.errorMessage}>{error}</Text>
+  const renderError = () => {
+    // Determine error type for better messaging
+    const isNetworkError = error?.toLowerCase().includes('network') ||
+                          error?.toLowerCase().includes('connection');
+    const isAPIError = error?.toLowerCase().includes('api') ||
+                      error?.toLowerCase().includes('token');
 
-      <TouchableOpacity
-        style={styles.retryButton}
-        onPress={handleRetry}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.retryButtonText}>🔄 Retry</Text>
-      </TouchableOpacity>
+    return (
+      <View style={styles.centerContent}>
+        <Text style={styles.errorIcon}>⚠️</Text>
+        <Text style={styles.errorTitle}>Something went wrong</Text>
+        <Text style={styles.errorMessage}>{error}</Text>
 
-      <Text style={styles.errorHint}>
-        If the problem persists, try starting over with a different photo
-      </Text>
-    </View>
-  );
+        {/* Contextual troubleshooting tips */}
+        <View style={styles.troubleshootingBox}>
+          <Text style={styles.troubleshootingTitle}>💡 Troubleshooting:</Text>
+          {isNetworkError && (
+            <Text style={styles.troubleshootingText}>
+              • Check your internet connection{'\n'}
+              • Make sure you have a stable WiFi or cellular signal{'\n'}
+              • Try again in a moment
+            </Text>
+          )}
+          {isAPIError && (
+            <Text style={styles.troubleshootingText}>
+              • This is a demo using mock API{'\n'}
+              • To use real AI, add your API key in services/api.js{'\n'}
+              • See README.md for setup instructions
+            </Text>
+          )}
+          {!isNetworkError && !isAPIError && (
+            <Text style={styles.troubleshootingText}>
+              • Try uploading a different photo{'\n'}
+              • Make sure the photo shows a clear view{'\n'}
+              • Restart the app if issues persist
+            </Text>
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={handleRetry}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.retryButtonText}>🔄 Retry</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.errorHint}>
+          Note: This is a validation MVP. Some errors are simulated for testing.
+        </Text>
+      </View>
+    );
+  };
 
   /**
    * Render success state with result image
@@ -197,14 +287,22 @@ const ResultScreen = ({ navigation, route }) => {
       contentContainerStyle={styles.successContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* Result Image */}
-      <View style={styles.resultImageContainer}>
+      {/* Result Image with Animation */}
+      <Animated.View
+        style={[
+          styles.resultImageContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
         <Image
           source={{ uri: resultImage }}
           style={styles.resultImage}
           resizeMode="contain"
         />
-      </View>
+      </Animated.View>
 
       {/* Garment Info Card */}
       <View style={styles.infoCard}>
@@ -341,23 +439,19 @@ const styles = StyleSheet.create({
   },
 
   // Loading State Styles
-  loadingTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginTop: 20,
-  },
-  loadingSubtitle: {
-    fontSize: 16,
-    color: '#6b7280',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  loadingNote: {
+  processingTime: {
     fontSize: 14,
-    color: '#9ca3af',
+    fontWeight: '600',
+    color: '#6366f1',
     marginTop: 16,
+  },
+  loadingHint: {
+    fontSize: 13,
+    color: '#9ca3af',
+    marginTop: 20,
+    textAlign: 'center',
     fontStyle: 'italic',
+    paddingHorizontal: 40,
   },
   processingInfo: {
     marginTop: 40,
@@ -414,6 +508,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 30,
     fontStyle: 'italic',
+  },
+  troubleshootingBox: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#6366f1',
+    width: '90%',
+  },
+  troubleshootingTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  troubleshootingText: {
+    fontSize: 14,
+    color: '#4b5563',
+    lineHeight: 22,
   },
 
   // Success State Styles

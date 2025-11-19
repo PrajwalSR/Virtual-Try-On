@@ -1,31 +1,40 @@
 {
   "expo": {
-    "name": "Virtual Try-On",
-    "slug": "virtual-tryon-app",
+    "name": "Virtual Try-On MVP",
+    "slug": "virtual-tryon-mvp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "virtualtryon",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#6366f1"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/[your-project-id]"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.virtualtryon.mvp",
+      "buildNumber": "1.0.0",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app needs access to your camera to take photos for virtual try-on.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select photos for virtual try-on.",
-        "NSPhotoLibraryAddUsageDescription": "This app needs permission to save try-on results to your photo library."
+        "NSCameraUsageDescription": "Virtual Try-On needs camera access to take photos for trying on garments. Your photos are processed locally and never shared without your permission.",
+        "NSPhotoLibraryUsageDescription": "Virtual Try-On needs photo library access to let you select photos for trying on garments. Your photos remain private and secure.",
+        "NSPhotoLibraryAddUsageDescription": "Virtual Try-On needs permission to save your try-on results to your photo library. You can share or keep these images privately."
       }
     },
     "android": {
+      "package": "com.virtualtryon.mvp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#6366f1"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -35,7 +44,16 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "[your-project-id-here]"
+      }
     }
   }
 }
