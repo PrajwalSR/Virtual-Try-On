@@ -12,10 +12,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#6366f1"
     },
-    "updates": {
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/[your-project-id]"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -46,11 +42,6 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "[your-project-id-here]"
-      }
     }
   }
 }
