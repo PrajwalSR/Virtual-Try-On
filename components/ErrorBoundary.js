@@ -7,7 +7,6 @@ import {
   ScrollView,
   SafeAreaView,
 } from 'react-native';
-import * as Updates from 'expo-updates';
 
 /**
  * ErrorBoundary Component
@@ -57,28 +56,16 @@ class ErrorBoundary extends React.Component {
   }
 
   /**
-   * Reset error state and reload app
+   * Reset error state
+   * Note: In production, you could reload the app using expo-updates
    */
-  handleRestart = async () => {
-    try {
-      // Reset state
-      this.setState({
-        hasError: false,
-        error: null,
-        errorInfo: null,
-      });
-
-      // Reload app (Expo Updates)
-      await Updates.reloadAsync();
-    } catch (e) {
-      // If reload fails, just reset state
-      console.error('Failed to reload:', e);
-      this.setState({
-        hasError: false,
-        error: null,
-        errorInfo: null,
-      });
-    }
+  handleRestart = () => {
+    // Reset state - this will re-render the app
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+    });
   };
 
   /**
